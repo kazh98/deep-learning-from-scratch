@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
+from typing import Union
+
+__eps = 1e-7
 
 
 def step(x: np.ndarray) -> np.ndarray:
@@ -24,3 +27,17 @@ def softmax(x: np.ndarray) -> np.ndarray:
     np.exp(u, out=u)
     u /= np.sum(u)
     return u
+
+
+def mean_squared_error(y: np.ndarray, t: np.ndarray) -> Union[float, np.ndarray]:
+    if y.ndim == 1:
+        u = y - t
+        return np.inner(u, u) / 2
+    u = y - t
+    return np.einsum('ij,ij->', u, u) / 2 / y.shape[0]
+
+
+def cross_entropy_error(y: np.ndarray, t: np.ndarray) -> Union[float, np.ndarray]:
+    if y.ndim == 1:
+        return -np.inner(t, np.log(y + __eps))
+    return -np.sum(t * np.log(y + __eps)) / y.shape[0]
