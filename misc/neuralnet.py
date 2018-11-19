@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
-from .functions import sigmoid, softmax, cross_entropy_error
+from collections import OrderedDict
+from .layers import *
 from typing import Callable
 
 __eps = 1e-4
@@ -44,19 +45,26 @@ class TwoLayerNet(object):
             'W2': weight_init_std * np.random.randn(hidden_size, output_size),
             'b2': np.zeros(output_size)
         }
+        self.layers = OrderedDict()
+        self.layers['Affine1'] = Affine(self.params['W1'], self.params['b1'])
+        self.layers['Relu1'] = Relu()
+        self.layers['Affine2'] = Affine(self.params['W2'], self.params['b2'])
+        self.lastLayer = SoftmaxWithLoss()
 
     def predict(self, x: np.ndarray) -> np.ndarray:
-        W1, W2 = self.params['W1'], self.params['W2']
-        b1, b2 = self.params['b1'], self.params['b2']
-
-        u = np.dot(x, W1) + b1
-        u = sigmoid(u)
-        u = np.dot(u, W2) + b2
-        u = softmax(u)
-        return u
+        for layer in self.layers.values():
+            x = layer.forward(x)
+        return x
 
     def loss(self, x: np.ndarray, t: np.ndarray) -> float:
-        return cross_entropy_error(self.predict(x), t)
+        x = self.predict(x)
+        return self.lastLayer.forward(x, t)
+
+    def accuracy(self, x: np.ndarray, t: np.ndarray) -> float:
+        y = np.argmax(self.predict(x), axis=1)
+        if t.ndim != 1:
+            t = np.argmax(t, axis=1)
+        return np.sum(y == t) / float(x.shape[0])
 
     def score(self, x: np.ndarray, t: np.ndarray) -> float:
         y = np.argmax(self.predict(x), axis=1)
@@ -69,4 +77,16 @@ class TwoLayerNet(object):
             'b1': _numerical_gradient(lambda w: self.loss(x, t), self.params['b1']),
             'W2': _numerical_gradient(lambda w: self.loss(x, t), self.params['W2']),
             'b2': _numerical_gradient(lambda w: self.loss(x, t), self.params['b2'])
+        }
+
+    def gradient(self, x: np.ndarray, t: np.ndarray) -> np.ndarray:
+        self.loss(x, t)
+        dout = self.lastLayer.backward(1)
+        for layer in reversed(self.layers.values()):
+            dout = layer.backward(dout)
+        return {
+            'W1': self.layers['Affine1'].dW,
+            'b1': self.layers['Affine1'].db,
+            'W2': self.layers['Affine2'].dW,
+            'b2': self.layers['Affine2'].db
         }

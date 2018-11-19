@@ -23,6 +23,11 @@ def identity(x: np.ndarray) -> np.ndarray:
 
 
 def softmax(x: np.ndarray) -> np.ndarray:
+    if x.ndim == 2:
+        u = x - np.max(x, axis=1)[:, np.newaxis]
+        np.exp(u, out=u)
+        u /= np.sum(u, axis=1)[:, np.newaxis]
+        return u
     u = x - np.max(x)
     np.exp(u, out=u)
     u /= np.sum(u)
